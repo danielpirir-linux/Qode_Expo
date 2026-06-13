@@ -325,63 +325,11 @@ public class CRUD extends javax.swing.JFrame {
     }//GEN-LAST:event_jTextField1ActionPerformed
 
     private void jTable1MouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jTable1MouseClicked
-int filaSeleccionada = jTable1.getSelectedRow();
-    
-    if (filaSeleccionada != -1) {
-        // 1. Extraemos los strings de la fila seleccionada en jTable1
-        String id = jTable1.getValueAt(filaSeleccionada, 0).toString();
-        String nombre = jTable1.getValueAt(filaSeleccionada, 1).toString();
-        String email = jTable1.getValueAt(filaSeleccionada, 2).toString();
-        jTextField1.setText(nombre); 
-        
-    }
+
     }//GEN-LAST:event_jTable1MouseClicked
 
     private void jButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton3ActionPerformed
-                                      
-    int filaSeleccionada = jTable1.getSelectedRow();
-    if (filaSeleccionada == -1) {
-        JOptionPane.showMessageDialog(this, "Por favor, seleccione un usuario de la tabla primero.", "Aviso", JOptionPane.WARNING_MESSAGE);
-        return;
-    }
-
-    int idUsuario = Integer.parseInt(jTable1.getValueAt(filaSeleccionada, 0).toString());
-    
-    String nuevoNombre = jTextField1.getText().trim();
-
-    if (nuevoNombre.isEmpty()) {
-        JOptionPane.showMessageDialog(this, "El campo de texto no puede estar vacío.", "Error", JOptionPane.ERROR_MESSAGE);
-        return;
-    }
-
-    String sql = "UPDATE usuarios SET nombre = ? WHERE id_usuario = ?";
-
-    try {
-        Connection con = java.sql.DriverManager.getConnection("jdbc:mysql://localhost:3306/Qode_db", "root", "admin"); 
-        java.sql.PreparedStatement ps = con.prepareStatement(sql);
-        
-        ps.setString(1, nuevoNombre);
-        ps.setInt(2, idUsuario);
-
-        int resultado = ps.executeUpdate();
-
-        if (resultado > 0) {
-            JOptionPane.showMessageDialog(this, "¡Registro actualizado con éxito!");
-            
-            cargarDatosTabla(comboTablas.getSelectedItem().toString());
-            
-            jTextField1.setText("");
-        } else {
-            JOptionPane.showMessageDialog(this, "No se pudo actualizar el registro en la base de datos.", "Error", JOptionPane.ERROR_MESSAGE);
-        }
-
-        ps.close();
-        con.close();
-
-    } catch (java.sql.SQLException ex) {
-        JOptionPane.showMessageDialog(this, "Error SQL al actualizar: " + ex.getMessage(), "Error de Base de Datos", JOptionPane.ERROR_MESSAGE);
-    }
-
+       ejecutarActualizacion();
     }//GEN-LAST:event_jButton3ActionPerformed
 
     private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
@@ -595,43 +543,65 @@ int filaSeleccionada = jTable1.getSelectedRow();
     }
     
     private void ejecutarActualizacion() {
-        int filaSel = jTable1.getSelectedRow();
-        int colSel = jTable1.getSelectedColumn();
+       int filaSel = jTable1.getSelectedRow();
+    int colSel = jTable1.getSelectedColumn();
 
-        if (filaSel == -1 || colSel == -1) {
-            JOptionPane.showMessageDialog(this, "Seleccione la celda exacta a editar.");
-            return;
-        }
+    if (filaSel == -1 || colSel == -1) {
+        JOptionPane.showMessageDialog(this, "Por favor, seleccione la celda exacta en la tabla que desea editar.");
+        return;
+    }
 
-        int filaModelo = jTable1.convertRowIndexToModel(filaSel);
-        String tablaActiva = comboTablas.getSelectedItem().toString();
-        String campoId = jTable1.getModel().getColumnName(0);
-        String campoAModificar = jTable1.getModel().getColumnName(colSel);
+    int filaModelo = jTable1.convertRowIndexToModel(filaSel);
+    String tablaActiva = comboTablas.getSelectedItem().toString();
+    String campoId = jTable1.getModel().getColumnName(0);
+    String campoAModificar = jTable1.getModel().getColumnName(colSel);
+    
+    Object valorId = jTable1.getModel().getValueAt(filaModelo, 0);
+    Object valorActual = jTable1.getModel().getValueAt(filaModelo, colSel);
+
+    if (colSel == 0) {
+        JOptionPane.showMessageDialog(this, "No se permite modificar el identificador primario de los registros.", "Aviso", JOptionPane.WARNING_MESSAGE);
+        return;
+    }
+
+    if ("usuarios".equalsIgnoreCase(tablaActiva) && "rol".equalsIgnoreCase(campoAModificar) && !"admin".equalsIgnoreCase(usuarioRol)) {
+        JOptionPane.showMessageDialog(this, "Denegado: No cuenta con privilegios para alterar roles.", "Seguridad", JOptionPane.ERROR_MESSAGE);
+        cargarDatosTabla(tablaActiva);
+        return;
+    }
+
+    String nuevoValor = JOptionPane.showInputDialog(
+            this, 
+            "Modificando columna: [" + campoAModificar + "]\nValor actual: " + (valorActual != null ? valorActual.toString() : "(Vacío)"),
+            "Actualizar Registro", 
+            JOptionPane.QUESTION_MESSAGE
+    );
+
+    if (nuevoValor == null) {
+        return; 
+    }
+
+    String query = "UPDATE " + tablaActiva + " SET " + campoAModificar + " = ? WHERE " + campoId + " = ?";
+
+    try (Connection con = conexionBD.getConnection();
+         PreparedStatement pstm = con.prepareStatement(query)) {
         
-        Object valorId = jTable1.getModel().getValueAt(filaModelo, 0);
-        Object nuevoValor = jTable1.getModel().getValueAt(filaModelo, colSel);
-
-        if ("usuarios".equalsIgnoreCase(tablaActiva) && "rol".equalsIgnoreCase(campoAModificar) && !"admin".equalsIgnoreCase(usuarioRol)) {
-            JOptionPane.showMessageDialog(this, "Denegado: No cuenta con privilegios para alterar roles.", "Seguridad", JOptionPane.ERROR_MESSAGE);
+        pstm.setObject(1, nuevoValor.trim());
+        pstm.setObject(2, valorId);
+        
+        if (pstm.executeUpdate() > 0) {
+            JOptionPane.showMessageDialog(this, "¡Modificación guardada con éxito!");
             cargarDatosTabla(tablaActiva);
-            return;
-        }
-
-        String query = "UPDATE " + tablaActiva + " SET " + campoAModificar + " = ? WHERE " + campoId + " = ?";
-
-        try (Connection con = conexionBD.getConnection();
-             PreparedStatement pstm = con.prepareStatement(query)) {
             
-            pstm.setObject(1, nuevoValor);
-            pstm.setObject(2, valorId);
-            
-            if (pstm.executeUpdate() > 0) {
-                JOptionPane.showMessageDialog(this, "¡Modificación guardada con éxito!");
-                cargarDatosTabla(tablaActiva);
+            // Limpiamos el buscador para restablecer la vista de la tabla
+            jTextField1.setText("");
+            if (sorter != null) {
+                sorter.setRowFilter(null);
             }
-        } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(this, "Fallo al procesar actualización:\n" + ex.getMessage(), "Error SQL", JOptionPane.ERROR_MESSAGE);
         }
+    } catch (SQLException ex) {
+        JOptionPane.showMessageDialog(this, "Fallo al procesar actualización:\n" + ex.getMessage(), "Error SQL", JOptionPane.ERROR_MESSAGE);
+    }
     }
     
     private void ejecutarEliminacion() {
